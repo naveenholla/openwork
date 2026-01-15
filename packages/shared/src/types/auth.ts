@@ -42,3 +42,46 @@ export interface QuotaStatus {
   remaining: number;
   resetsAt?: string;
 }
+
+// ============================================================================
+// Antigravity OAuth Types
+// ============================================================================
+
+/**
+ * Stored Antigravity OAuth tokens
+ */
+export interface AntigravityTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  projectId: string;
+  email?: string;
+}
+
+/**
+ * Antigravity authenticated account
+ */
+export interface AntigravityAccount {
+  id: string;
+  email: string;
+  projectId: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+/**
+ * Result of Antigravity login operation
+ */
+export interface AntigravityLoginResult {
+  success: boolean;
+  account?: AntigravityAccount;
+  error?: string;
+}
+
+/**
+ * Antigravity authentication status
+ */
+export interface AntigravityStatus {
+  authenticated: boolean;
+  accountCount: number;
+}

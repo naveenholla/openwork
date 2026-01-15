@@ -358,10 +358,27 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
       }
     }
 
-    // Load all API keys
+    // Check if we need to route through local proxy
+    // Proxy models: vibeproxy-* providers, antigravity/*, custom/*, and non-standard anthropic/* models
+    const selectedModel = getSelectedModel();
+    const modelId = selectedModel?.model || '';
+    const modelName = modelId.split('/')[1] || '';
+    const providerPrefix = modelId.split('/')[0] || '';
+
+    // Standard Anthropic models that route to real Anthropic API
+    const STANDARD_ANTHROPIC_MODELS = ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-haiku-4-5'];
+
+    const isProxyModel =
+      providerPrefix.startsWith('vibeproxy-') ||
+      selectedModel?.provider === 'antigravity' ||
+      modelId.startsWith('antigravity/') ||
+      modelId.startsWith('custom/') ||
+      (selectedModel?.provider === 'anthropic' && !STANDARD_ANTHROPIC_MODELS.includes(modelName));
+
+    // Load all API keys (but skip Anthropic if using proxy)
     const apiKeys = await getAllApiKeys();
 
-    if (apiKeys.anthropic) {
+    if (apiKeys.anthropic && !isProxyModel) {
       env.ANTHROPIC_API_KEY = apiKeys.anthropic;
       console.log('[OpenCode CLI] Using Anthropic API key from settings');
     }
@@ -377,6 +394,11 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
       env.GROQ_API_KEY = apiKeys.groq;
       console.log('[OpenCode CLI] Using Groq API key from settings');
     }
+
+    // Note: For proxy models, we use the 'vibeproxy-anthropic' provider
+    // which is configured in ~/.config/opencode/opencode.json with the
+    // correct baseURL (http://localhost:8317/v1) and apiKey ('admin').
+    // No need to set ANTHROPIC_BASE_URL here - the provider config handles it.
 
     // Log config environment variable
     console.log('[OpenCode CLI] OPENCODE_CONFIG in env:', process.env.OPENCODE_CONFIG);
@@ -409,7 +431,29 @@ export class OpenCodeAdapter extends EventEmitter<OpenCodeAdapterEvents> {
 
     // Add model selection if specified
     if (selectedModel?.model) {
-      args.push('--model', selectedModel.model);
+      let modelId = selectedModel.model;
+
+      // Standard Anthropic models that route to real Anthropic API
+      const STANDARD_ANTHROPIC_MODELS = ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-haiku-4-5'];
+      const modelName = modelId.split('/')[1] || modelId;
+      const providerPrefix = modelId.split('/')[0] || '';
+
+      // Route to appropriate vibeproxy provider based on the model's provider
+      if (providerPrefix.startsWith('vibeproxy-')) {
+        // Already using correct vibeproxy provider
+        console.log('[OpenCode CLI] Using vibeproxy model:', modelId);
+      } else if (modelId.startsWith('antigravity/')) {
+        modelId = `vibeproxy-anthropic/${modelName}`;
+        console.log('[OpenCode CLI] Using local proxy model (vibeproxy-anthropic):', modelId);
+      } else if (modelId.startsWith('anthropic/') && !STANDARD_ANTHROPIC_MODELS.includes(modelName)) {
+        // Non-standard anthropic models route through the local proxy
+        modelId = `vibeproxy-anthropic/${modelName}`;
+        console.log('[OpenCode CLI] Using proxy model (vibeproxy-anthropic):', modelId);
+      } else {
+        console.log('[OpenCode CLI] Using model:', modelId);
+      }
+
+      args.push('--model', modelId);
     }
 
     // Resume session if specified

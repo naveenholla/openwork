@@ -133,6 +133,18 @@ const accomplishAPI = {
 
   logEvent: (payload: { level?: string; message: string; context?: Record<string, unknown> }) =>
     ipcRenderer.invoke('log:event', payload),
+
+  // Antigravity OAuth
+  antigravityLogin: (): Promise<{ success: boolean; account?: unknown; error?: string }> =>
+    ipcRenderer.invoke('antigravity:login'),
+  antigravityLogout: (accountId: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('antigravity:logout', accountId),
+  antigravityLogoutAll: (): Promise<{ count: number }> =>
+    ipcRenderer.invoke('antigravity:logout-all'),
+  antigravityStatus: (): Promise<{ authenticated: boolean; accountCount: number }> =>
+    ipcRenderer.invoke('antigravity:status'),
+  antigravityAccounts: (): Promise<Array<{ id: string; email: string; projectId: string; createdAt: string; lastUsedAt?: string }>> =>
+    ipcRenderer.invoke('antigravity:accounts'),
 };
 
 // Expose the API to the renderer

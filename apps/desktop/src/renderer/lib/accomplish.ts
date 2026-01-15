@@ -15,6 +15,7 @@ import type {
   TaskProgress,
   ApiKeyConfig,
   TaskMessage,
+  AntigravityAccount,
 } from '@accomplish/shared';
 
 // Define the API interface
@@ -83,6 +84,13 @@ interface AccomplishAPI {
 
   // Logging
   logEvent(payload: { level?: string; message: string; context?: Record<string, unknown> }): Promise<unknown>;
+
+  // Antigravity OAuth
+  antigravityLogin(): Promise<{ success: boolean; account?: AntigravityAccount; error?: string }>;
+  antigravityLogout(accountId: string): Promise<{ success: boolean }>;
+  antigravityLogoutAll(): Promise<{ count: number }>;
+  antigravityStatus(): Promise<{ authenticated: boolean; accountCount: number }>;
+  antigravityAccounts(): Promise<AntigravityAccount[]>;
 }
 
 interface AccomplishShell {

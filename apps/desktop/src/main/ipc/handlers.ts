@@ -27,6 +27,7 @@ import {
   getAllApiKeys,
   hasAnyApiKey,
   listStoredCredentials,
+  hasAntigravityAccounts,
 } from '../store/secureStorage';
 import {
   getDebugMode,
@@ -61,6 +62,14 @@ import {
   taskConfigSchema,
   validate,
 } from './validation';
+import {
+  login as antigravityLogin,
+  logout as antigravityLogout,
+  logoutAll as antigravityLogoutAll,
+  getAccounts as antigravityGetAccounts,
+  isAuthenticated as antigravityIsAuthenticated,
+  cleanup as antigravityCleanup,
+} from '../antigravity';
 
 const MAX_TEXT_LENGTH = 8000;
 const ALLOWED_API_KEY_PROVIDERS = new Set(['anthropic', 'openai', 'google', 'groq', 'custom']);
@@ -734,6 +743,12 @@ export function registerIPCHandlers(): void {
     const sanitizedKey = sanitizeString(key, 'apiKey', 256);
     console.log(`[API Key] Validation requested for provider: ${provider}`);
 
+    // Bypass validation for local proxy keys (Antigravity integration)
+    if (sanitizedKey === 'admin' || sanitizedKey === 'sk-ant-local-proxy-key') {
+      console.log(`[API Key] Bypassing validation for proxy key: ${provider}`);
+      return { valid: true };
+    }
+
     try {
       let response: Response;
 
@@ -952,6 +967,46 @@ export function registerIPCHandlers(): void {
       return { ok: true };
     }
   );
+
+  // ============================================================================
+  // Antigravity OAuth Handlers
+  // ============================================================================
+
+  // Antigravity: Login with Google OAuth
+  handle('antigravity:login', async (_event: IpcMainInvokeEvent) => {
+    console.log('[Antigravity] Starting OAuth login flow');
+    const result = await antigravityLogin();
+    return result;
+  });
+
+  // Antigravity: Logout a specific account
+  handle('antigravity:logout', async (_event: IpcMainInvokeEvent, accountId: string) => {
+    if (!accountId || typeof accountId !== 'string') {
+      throw new Error('Account ID is required');
+    }
+    const sanitizedId = sanitizeString(accountId, 'accountId', 128);
+    const success = await antigravityLogout(sanitizedId);
+    return { success };
+  });
+
+  // Antigravity: Logout all accounts
+  handle('antigravity:logout-all', async (_event: IpcMainInvokeEvent) => {
+    const count = await antigravityLogoutAll();
+    return { count };
+  });
+
+  // Antigravity: Get authentication status
+  handle('antigravity:status', async (_event: IpcMainInvokeEvent) => {
+    return {
+      authenticated: antigravityIsAuthenticated(),
+      accountCount: antigravityGetAccounts().length,
+    };
+  });
+
+  // Antigravity: List all authenticated accounts
+  handle('antigravity:accounts', async (_event: IpcMainInvokeEvent) => {
+    return antigravityGetAccounts();
+  });
 }
 
 function createTaskId(): string {

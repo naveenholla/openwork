@@ -239,3 +239,93 @@ export function clearSecureStorage(): void {
   store.clear();
   _derivedKey = null; // Clear cached key
 }
+
+// ============================================================================
+// Antigravity OAuth Token Storage
+// ============================================================================
+
+/**
+ * Stored Antigravity OAuth tokens
+ */
+export interface AntigravityStoredTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  projectId: string;
+  email?: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+const ANTIGRAVITY_PREFIX = 'antigravity:';
+
+/**
+ * Store Antigravity OAuth tokens for an account
+ */
+export function storeAntigravityTokens(accountId: string, tokens: AntigravityStoredTokens): void {
+  const store = getSecureStore();
+  const encrypted = encryptValue(JSON.stringify(tokens));
+  const values = store.get('values');
+  values[`${ANTIGRAVITY_PREFIX}${accountId}`] = encrypted;
+  store.set('values', values);
+}
+
+/**
+ * Retrieve Antigravity OAuth tokens for an account
+ */
+export function getAntigravityTokens(accountId: string): AntigravityStoredTokens | null {
+  const store = getSecureStore();
+  const values = store.get('values');
+  const encrypted = values[`${ANTIGRAVITY_PREFIX}${accountId}`];
+  if (!encrypted) {
+    return null;
+  }
+  const decrypted = decryptValue(encrypted);
+  if (!decrypted) {
+    return null;
+  }
+  try {
+    return JSON.parse(decrypted) as AntigravityStoredTokens;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete Antigravity OAuth tokens for an account
+ */
+export function deleteAntigravityTokens(accountId: string): boolean {
+  const store = getSecureStore();
+  const values = store.get('values');
+  const key = `${ANTIGRAVITY_PREFIX}${accountId}`;
+  if (!(key in values)) {
+    return false;
+  }
+  delete values[key];
+  store.set('values', values);
+  return true;
+}
+
+/**
+ * List all Antigravity account IDs
+ */
+export function listAntigravityAccounts(): string[] {
+  const store = getSecureStore();
+  const values = store.get('values');
+  const accounts: string[] = [];
+
+  for (const key of Object.keys(values)) {
+    if (key.startsWith(ANTIGRAVITY_PREFIX)) {
+      accounts.push(key.slice(ANTIGRAVITY_PREFIX.length));
+    }
+  }
+
+  return accounts;
+}
+
+/**
+ * Check if any Antigravity accounts are stored
+ */
+export function hasAntigravityAccounts(): boolean {
+  return listAntigravityAccounts().length > 0;
+}

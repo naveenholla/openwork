@@ -338,6 +338,25 @@ interface OpenCodeConfig {
   permission?: string | Record<string, string | Record<string, string>>;
   agent?: Record<string, AgentConfig>;
   mcp?: Record<string, McpServerConfig>;
+  provider?: Record<string, ProviderConfigDef>;
+}
+
+interface ProviderConfigDef {
+  npm?: string;
+  name?: string;
+  options?: {
+    apiKey?: string;
+    baseURL?: string;
+  };
+  models?: Record<string, ModelDef>;
+}
+
+interface ModelDef {
+  name?: string;
+  limit?: {
+    context?: number;
+    output?: number;
+  };
 }
 
 /**
@@ -366,8 +385,16 @@ export async function generateOpenCodeConfig(): Promise<string> {
   const config: OpenCodeConfig = {
     $schema: 'https://opencode.ai/config.json',
     default_agent: ACCOMPLISH_AGENT_NAME,
-    // Enable all supported providers - providers auto-configure when API keys are set via env vars
-    enabled_providers: ['anthropic', 'openai', 'google', 'groq'],
+    // Enable all supported providers including vibeproxy providers for local proxy
+    enabled_providers: [
+      'anthropic',
+      'openai',
+      'google',
+      'groq',
+      'vibeproxy-google',
+      'vibeproxy-openai',
+      'vibeproxy-anthropic',
+    ],
     // Auto-allow all tool permissions - the system prompt instructs the agent to use
     // AskUserQuestion for user confirmations, which shows in the UI as an interactive modal.
     // CLI-level permission prompts don't show in the UI and would block task execution.
@@ -389,6 +416,51 @@ export async function generateOpenCodeConfig(): Promise<string> {
           PERMISSION_API_PORT: String(PERMISSION_API_PORT),
         },
         timeout: 10000,
+      },
+    },
+    // VibeProxy providers for local proxy routing (http://localhost:8317)
+    provider: {
+      'vibeproxy-google': {
+        npm: '@ai-sdk/google',
+        name: 'VibeProxy Google',
+        options: {
+          apiKey: 'admin',
+          baseURL: 'http://localhost:8317/v1beta',
+        },
+        models: {
+          'gemini-2.5-flash': { name: 'Gemini 2.5 Flash', limit: { context: 1000000, output: 8192 } },
+          'gemini-2.5-flash-lite': { name: 'Gemini 2.5 Flash Lite', limit: { context: 1000000, output: 8192 } },
+          'gemini-2.5-computer-use-preview-10-2025': { name: 'Gemini 2.5 Computer Use', limit: { context: 1000000, output: 8192 } },
+          'gemini-3-flash-preview': { name: 'Gemini 3 Flash Preview', limit: { context: 1000000, output: 8192 } },
+          'gemini-3-pro-preview': { name: 'Gemini 3 Pro Preview', limit: { context: 2000000, output: 8192 } },
+          'gemini-3-pro-image-preview': { name: 'Gemini 3 Pro Image', limit: { context: 2000000, output: 8192 } },
+        },
+      },
+      'vibeproxy-openai': {
+        npm: '@ai-sdk/openai-compatible',
+        name: 'VibeProxy OpenAI',
+        options: {
+          apiKey: 'admin',
+          baseURL: 'http://localhost:8317/v1',
+        },
+        models: {
+          'gpt-5-codex-mini': { name: 'GPT 5 Codex Mini', limit: { context: 128000, output: 16384 } },
+          'gpt-5.1-codex-max': { name: 'GPT 5.1 Codex Max', limit: { context: 128000, output: 16384 } },
+          'gpt-5.2-codex': { name: 'GPT 5.2 Codex', limit: { context: 128000, output: 16384 } },
+        },
+      },
+      'vibeproxy-anthropic': {
+        npm: '@ai-sdk/anthropic',
+        name: 'VibeProxy Anthropic',
+        options: {
+          apiKey: 'admin',
+          baseURL: 'http://localhost:8317/v1',
+        },
+        models: {
+          'gemini-claude-opus-4-5-thinking': { name: 'Gemini Claude Opus 4.5 Thinking', limit: { context: 128000, output: 16384 } },
+          'gemini-claude-sonnet-4-5': { name: 'Gemini Claude Sonnet 4.5', limit: { context: 128000, output: 16384 } },
+          'gemini-claude-sonnet-4-5-thinking': { name: 'Gemini Claude Sonnet 4.5 Thinking', limit: { context: 128000, output: 16384 } },
+        },
       },
     },
   };

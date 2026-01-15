@@ -56,6 +56,7 @@ export function StreamingText({
     if (!isStreaming || isComplete) return;
 
     const charsPerMs = speed / 1000;
+    let shouldComplete = false;
 
     const animate = (timestamp: number) => {
       if (!lastTimeRef.current) {
@@ -69,12 +70,18 @@ export function StreamingText({
         setDisplayedLength((prev) => {
           const next = Math.min(prev + charsToAdd, textRef.current.length);
           if (next >= textRef.current.length) {
-            setIsStreaming(false);
-            onComplete?.();
+            shouldComplete = true;
           }
           return next;
         });
         lastTimeRef.current = timestamp;
+
+        // Defer state updates to avoid updating during render
+        if (shouldComplete) {
+          setIsStreaming(false);
+          onComplete?.();
+          return; // Stop animation loop
+        }
       }
 
       if (displayedLength < textRef.current.length) {
